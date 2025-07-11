@@ -9,6 +9,7 @@ import Watchlist from './pages/Watchlist';
 import SearchResults from './pages/SearchResults';
 import AdvancedSearch from './pages/AdvancedSearch';
 import ActorPage from './pages/ActorPage';
+import AdminPage from './pages/AdminPage'; 
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/common/Header';
@@ -41,6 +42,7 @@ const AppRoutes = () => {
         <Route path="/advanced-search" element={<AdvancedSearch />} />
         <Route path={routePath.profile} element={<Profile />} />
         <Route path="/actor/:actorId" element={<ActorPage />} />
+        <Route path="/admin" element={<AdminPage />} /> 
       </Routes>
     </Router>
   );

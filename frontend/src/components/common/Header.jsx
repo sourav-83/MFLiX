@@ -1,5 +1,5 @@
 // Header.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   AppBar, 
   Toolbar, 
@@ -17,14 +17,16 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-//import PersonIcon from '@mui/icons-material/Person';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { logoURL } from '../../constants/constant';
 import { useNavigate } from 'react-router-dom';
 import { routePath } from '../../constants/route';
 import HeaderMenu from './HeaderMenu';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
+import url from '../../constants/url';
 
 const StyledToolBar = styled(Toolbar)`
   background: #121212;
@@ -84,7 +86,6 @@ const ProfileAvatar = styled(Avatar)`
   margin-right: 8px;
 `;
 
-
 const Username = styled(Typography)`
   font-size: 14px;
   font-weight: 600;
@@ -122,11 +123,12 @@ const StyledMenu = styled(Menu)`
   }
 `;
 
-
 const Header = () => {
   const [open, setOpen] = useState(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckLoading, setAdminCheckLoading] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -138,12 +140,35 @@ const Header = () => {
     setOpen(null);
   };
 
-  const handleProfileClick = (e) => {
+  // Check admin status when profile menu is clicked
+  const handleProfileClick = async (e) => {
     setProfileMenuOpen(e.currentTarget);
+    
+    // Check admin status if user is authenticated and we haven't checked yet
+    if (isAuthenticated && !adminCheckLoading) {
+      await checkAdminStatus();
+    }
   };
 
   const handleProfileClose = () => {
     setProfileMenuOpen(null);
+  };
+
+  // Function to check if user is admin
+  const checkAdminStatus = async () => {
+    try {
+      setAdminCheckLoading(true);
+      const response = await axios.get(`${url}/api/user/is_admin`);
+      
+      // Assuming the backend returns { isAdmin: true/false } or { admin: true/false }
+      const adminStatus = response.data.isAdmin || response.data.admin || false;
+      setIsAdmin(adminStatus);
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+    } finally {
+      setAdminCheckLoading(false);
+    }
   };
 
   const handleAuth = () => {
@@ -157,13 +182,20 @@ const Header = () => {
   const handleLogout = () => {
     logout();
     handleProfileClose();
+    // Reset admin status on logout
+    setIsAdmin(false);
     navigate('/');
   };
 
   const handleProfilePage = () => {
-  handleProfileClose();
-  navigate(routePath.profile); 
-};
+    handleProfileClose();
+    navigate(routePath.profile); 
+  };
+
+  const handleAdminPage = () => {
+    handleProfileClose();
+    navigate('/admin'); // Navigate to admin page
+  };
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
@@ -185,6 +217,13 @@ const Header = () => {
     if (!username) return 'U';
     return username.charAt(0).toUpperCase();
   };
+
+  // Reset admin status when user logs out or authentication changes
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsAdmin(false);
+    }
+  }, [isAuthenticated]);
 
   return (
     <AppBar position="static">
@@ -241,6 +280,19 @@ const Header = () => {
                 <ListItemText>Your Profile</ListItemText>
               </MenuItem>
               
+              {/* Conditionally show admin option */}
+              {isAdmin && (
+                <>
+                  <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+                  <MenuItem onClick={handleAdminPage}>
+                    <ListItemIcon>
+                      <AdminPanelSettingsIcon sx={{ color: 'white' }} />
+                    </ListItemIcon>
+                    <ListItemText>Manage Website</ListItemText>
+                  </MenuItem>
+                </>
+              )}
+              
               <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
               
               <MenuItem onClick={handleLogout}>
@@ -256,13 +308,9 @@ const Header = () => {
             Sign In
           </Typography>
         )}
-
-         
       </StyledToolBar>
     </AppBar>
   );
 };
 
 export default Header;
-
-

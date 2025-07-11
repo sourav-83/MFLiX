@@ -10,8 +10,22 @@ import {
   styled,
   Button,
   Alert,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
-import { ThumbUp, ThumbDown, Visibility, VisibilityOff, Star, StarBorder } from "@mui/icons-material";
+import { 
+  ThumbUp, 
+  ThumbDown, 
+  Visibility, 
+  VisibilityOff, 
+  Star, 
+  StarBorder,
+  MoreVert,
+  Report,
+  Flag
+} from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext"; // Import useAuth hook
 
 const ReviewCard = styled(Paper)`
@@ -53,10 +67,19 @@ const VoteButton = styled(IconButton)`
   }
 `;
 
-function ReviewsSection({ reviews, formatDate, onVoteReview, userVotes = {} }) {
+const ReviewHeaderActions = styled(Box)`
+  display: flex;
+  align-items: center;
+  gap: 1px;
+`;
+
+function ReviewsSection({ reviews, formatDate, onVoteReview, onReportReview, userVotes = {} }) {
   
   const [spoilerVisibility, setSpoilerVisibility] = useState({});
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [selectedReviewId, setSelectedReviewId] = useState(null);
   const { isAuthenticated } = useAuth();
+  
   console.log('Reviews in component:', reviews);
   console.log('First review user:', reviews?.[0]?.user);
 
@@ -78,6 +101,33 @@ function ReviewsSection({ reviews, formatDate, onVoteReview, userVotes = {} }) {
     } catch (error) {
       console.error('Error voting:', error);
       alert('Failed to submit vote. Please try again.');
+    }
+  };
+
+  const handleMenuOpen = (event, reviewId) => {
+    setMenuAnchor(event.currentTarget);
+    setSelectedReviewId(reviewId);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+    setSelectedReviewId(null);
+  };
+
+  const handleReportReview = async () => {
+    if (!isAuthenticated) {
+      alert('Please log in to report reviews');
+      handleMenuClose();
+      return;
+    }
+
+    try {
+      await onReportReview(selectedReviewId);
+      handleMenuClose();
+    } catch (error) {
+      console.error('Error reporting review:', error);
+      alert('Failed to report review. Please try again.');
+      handleMenuClose();
     }
   };
 
@@ -183,7 +233,7 @@ function ReviewsSection({ reviews, formatDate, onVoteReview, userVotes = {} }) {
               </Box>
             </Box>
             
-            <Box display="flex" gap={1}>
+            <ReviewHeaderActions>
               {review.hasspoiler && (
                 <>
                   <SpoilerButton
@@ -198,10 +248,24 @@ function ReviewsSection({ reviews, formatDate, onVoteReview, userVotes = {} }) {
                     label="Spoiler"
                     color="warning"
                     size="small"
+                    sx={{ ml: 1 }}
                   />
                 </>
               )}
-            </Box>
+              
+              {/* Report Menu */}
+              <IconButton
+                size="small"
+                onClick={(e) => handleMenuOpen(e, review.id)}
+                sx={{ 
+                  color: 'grey.400',
+                  ml: 1,
+                  '&:hover': { color: 'grey.300' }
+                }}
+              >
+                <MoreVert />
+              </IconButton>
+            </ReviewHeaderActions>
           </Box>
           
           {review.content && review.content.trim() !== '' && (
@@ -255,6 +319,47 @@ function ReviewsSection({ reviews, formatDate, onVoteReview, userVotes = {} }) {
           </Box>
         </ReviewCard>
       ))}
+
+      {/* Report Menu */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            bgcolor: 'rgba(40, 40, 40, 0.95)',
+            color: 'white',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }
+        }}
+      >
+        <MenuItem onClick={handleReportReview} disabled={!isAuthenticated}>
+          <ListItemIcon>
+            <Flag sx={{ color: isAuthenticated ? '#ff6b6b' : 'grey.500' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Report Review" 
+            sx={{ color: isAuthenticated ? 'white' : 'grey.500' }}
+          />
+        </MenuItem>
+        {!isAuthenticated && (
+          <MenuItem disabled>
+            <ListItemText 
+              primary="Login to report"
+              sx={{ color: 'grey.500', fontSize: '0.8rem' }}
+            />
+          </MenuItem>
+        )}
+      </Menu>
     </Box>
   );
 }

@@ -59,6 +59,7 @@ function MovieDetails() {
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState(null);
+  const [userVotes, setUserVotes] = useState({});
 
   // Check authentication status
   const checkAuthStatus = () => {
@@ -87,12 +88,36 @@ function MovieDetails() {
       setReviewsError(null);
       const response = await axios.get(`${url}/api/reviews/movie/${movieId}`);
       setReviews(response.data.reviews || []);
+      
+      // If user is authenticated, also fetch their vote status
+      if (isAuthenticated) {
+        await fetchUserVotes(movieId);
+      }
     } catch (error) {
       console.error("Error fetching movie reviews:", error);
       setReviewsError("Failed to load reviews");
       setReviews([]);
     } finally {
       setReviewsLoading(false);
+    }
+  };
+
+  // Fetch user votes for reviews
+  const fetchUserVotes = async (movieId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${url}/api/reviews/movie/${movieId}/votes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      setUserVotes(response.data.votes || {});
+    } catch (error) {
+      console.error("Error fetching user votes:", error);
+      setUserVotes({});
     }
   };
 
@@ -197,6 +222,50 @@ function MovieDetails() {
     }
   };
 
+  // Handle review reporting
+  const handleReportReview = async (reviewId) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setSnackbarMessage('Please log in to report reviews');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    try {
+      await axios.post(`${url}/api/reviews/${reviewId}/report`, {
+        reason: 'inappropriate_content' // You can make this configurable
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      setSnackbarMessage('Review reported successfully. Thank you for helping maintain our community standards.');
+      setSnackbarOpen(true);
+      
+    } catch (error) {
+      console.error('Error reporting review:', error);
+      
+      let errorMessage = 'Failed to report review';
+      if (error.response?.status === 401) {
+        errorMessage = 'Please log in to report reviews';
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+      } else if (error.response?.status === 400) {
+        errorMessage = 'You have already reported this review';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You cannot report your own review';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Review not found';
+      }
+      
+      setSnackbarMessage(errorMessage);
+      setSnackbarOpen(true);
+      throw error;
+    }
+  };
+
   // Initialize component
   useEffect(() => {
     const initializeComponent = async () => {
@@ -243,12 +312,14 @@ function MovieDetails() {
       
       if (nowAuthenticated !== wasAuthenticated) {
         if (nowAuthenticated && id) {
-          // User just logged in, check watchlist status
+          // User just logged in, check watchlist status and fetch user votes
           checkWatchlistStatus(id);
+          fetchUserVotes(id);
         } else if (!nowAuthenticated) {
-          // User just logged out, reset watchlist status
+          // User just logged out, reset watchlist status and clear user votes
           setIsInWatchlist(false);
           setWatchlistChecked(true);
+          setUserVotes({});
         }
       }
     };
@@ -453,13 +524,15 @@ function MovieDetails() {
           {/* Studios Section */}
           <StudiosSection studios={movie.studios} />
 
-          {/* Reviews Section - Updated to use separate reviews state */}
+          {/* Reviews Section - Updated to include report functionality */}
           <ReviewsSection 
             reviews={reviews}
             reviewsLoading={reviewsLoading}
             reviewsError={reviewsError}
             formatDate={formatDate} 
             onVoteReview={handleVoteReview}
+            onReportReview={handleReportReview}
+            userVotes={userVotes}
           />
         </Container>
       </Box>
