@@ -36,6 +36,7 @@ import StarIcon from '@mui/icons-material/Star';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import GavelIcon from '@mui/icons-material/Gavel';
 import axios from 'axios';
 import url from '../constants/url';
 import { useAuth } from '../components/contexts/AuthContext';
@@ -186,10 +187,10 @@ const AdminPage = () => {
     }
   };
 
-  const handleBanUser = async (reportId, username) => {
+  const handleDeleteAndBan = async (reportId, username) => {
     try {
       setActionLoading(reportId);
-      await axios.post(`${url}/api/user/admin/ban_user`, { 
+      await axios.post(`${url}/api/user/admin/delete_and_ban`, { 
         reportId, 
         username,
         banDuration: 30 // 30 days
@@ -197,12 +198,12 @@ const AdminPage = () => {
       
       // Remove the report from the list
       setReports(reports.filter(report => report.id !== reportId));
-      setSuccess(`User ${username} banned for 30 days`);
+      setSuccess(`Comment deleted and user ${username} banned for 30 days`);
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Error banning user:', error);
-      setError('Failed to ban user');
+      console.error('Error deleting comment and banning user:', error);
+      setError('Failed to delete comment and ban user');
       setTimeout(() => setError(''), 3000);
     } finally {
       setActionLoading(null);
@@ -233,8 +234,8 @@ const AdminPage = () => {
       case 'delete':
         handleDeleteComment(reportId);
         break;
-      case 'ban':
-        handleBanUser(reportId, username);
+      case 'deleteAndBan':
+        handleDeleteAndBan(reportId, username);
         break;
       default:
         break;
@@ -448,11 +449,11 @@ const AdminPage = () => {
                         variant="contained"
                         color="error"
                         size="small"
-                        startIcon={<BlockIcon />}
-                        onClick={() => openConfirmDialog('ban', report.id, report.commenterUsername)}
+                        startIcon={<GavelIcon />}
+                        onClick={() => openConfirmDialog('deleteAndBan', report.id, report.commenterUsername)}
                         disabled={actionLoading === report.id}
                       >
-                        Ban User (30d)
+                        Delete & Ban (30d)
                       </ActionButton>
                     </Box>
                   </Box>
@@ -479,8 +480,8 @@ const AdminPage = () => {
               'Are you sure you want to ignore this report? This action cannot be undone.'}
             {confirmDialog.action === 'delete' && 
               'Are you sure you want to delete this comment? This action cannot be undone.'}
-            {confirmDialog.action === 'ban' && 
-              `Are you sure you want to ban user "${confirmDialog.username}" for 30 days? This will prevent them from posting reviews and comments.`}
+            {confirmDialog.action === 'deleteAndBan' && 
+              `Are you sure you want to delete this comment and ban user "${confirmDialog.username}" for 30 days? This will remove the comment and prevent them from posting reviews and comments.`}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -489,12 +490,12 @@ const AdminPage = () => {
           </Button>
           <Button 
             onClick={handleConfirmAction} 
-            color={confirmDialog.action === 'ban' ? 'error' : 'primary'}
+            color={confirmDialog.action === 'deleteAndBan' ? 'error' : 'primary'}
             variant="contained"
           >
             {confirmDialog.action === 'ignore' && 'Ignore Report'}
             {confirmDialog.action === 'delete' && 'Delete Comment'}
-            {confirmDialog.action === 'ban' && 'Ban User'}
+            {confirmDialog.action === 'deleteAndBan' && 'Delete & Ban User'}
           </Button>
         </DialogActions>
       </Dialog>

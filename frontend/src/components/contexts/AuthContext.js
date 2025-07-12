@@ -1,4 +1,4 @@
-// contexts/AuthContext.js - Header Only Version
+// contexts/AuthContext.js - Updated with Deactivate Function
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import url from '../../constants/url';
@@ -121,12 +121,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deactivateAccount = async () => {
+    try {
+      await axios.post(`${url}/api/user/deactivate`);
+      
+      // After successful deactivation, logout the user
+      logout();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Account deactivation error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to deactivate account' 
+      };
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,
     loading,
     login,
     logout,
+    deactivateAccount,
     checkAuthStatus
   };
 

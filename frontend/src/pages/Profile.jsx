@@ -11,7 +11,14 @@ import {
   Container,
   Paper,
   CircularProgress,
-  Alert
+  Alert,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  TextField
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
@@ -19,7 +26,9 @@ import {
   Star,
   RateReview,
   Bookmark,
-  Movie
+  Movie,
+  Warning,
+  PersonOff
 } from '@mui/icons-material';
 import { useAuth } from '../components/contexts/AuthContext';
 import Slide from '../components/common/Slide';
@@ -40,7 +49,6 @@ const ProfileHeader = styled(Paper)(({ theme }) => ({
   border: '1px solid #333',
 }));
 
-
 const StatsCard = styled(Card)(({ theme }) => ({
   background: '#2A2A2A',
   color: '#E0E0E0',
@@ -54,7 +62,6 @@ const StatsCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-
 const UserAvatar = styled(Avatar)(({ theme }) => ({
   width: theme.spacing(12),
   height: theme.spacing(12),
@@ -66,7 +73,6 @@ const UserAvatar = styled(Avatar)(({ theme }) => ({
   fontWeight: 'bold',
 }));
 
-
 const SectionTitle = styled(Typography)(({ theme }) => ({
   color: '#F5C518',
   fontWeight: 'bold',
@@ -77,7 +83,6 @@ const SectionTitle = styled(Typography)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
-
 const MovieSection = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(3),
   padding: theme.spacing(2),
@@ -86,9 +91,28 @@ const MovieSection = styled(Box)(({ theme }) => ({
   border: '1px solid #2E2E2E',
 }));
 
+const DangerZone = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  background: '#1A1A1A',
+  border: '2px solid #d32f2f',
+  borderRadius: theme.spacing(2),
+  marginTop: theme.spacing(4),
+}));
+
+const DeactivateButton = styled(Button)(({ theme }) => ({
+  backgroundColor: '#d32f2f',
+  color: '#ffffff',
+  '&:hover': {
+    backgroundColor: '#b71c1c',
+  },
+  '&:disabled': {
+    backgroundColor: '#666666',
+    color: '#999999',
+  },
+}));
 
 const Profile = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [profileStats, setProfileStats] = useState({
     ratingsCount: 0,
     reviewsCount: 0,
@@ -98,6 +122,11 @@ const Profile = () => {
   const [reviewedMovies, setReviewedMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Deactivation dialog states
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
+  const [deactivating, setDeactivating] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -127,6 +156,39 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeactivateAccount = async () => {
+    if (confirmationText.toLowerCase() !== 'deactivate') {
+      return;
+    }
+
+    try {
+      setDeactivating(true);
+      
+      // Call the deactivate endpoint
+      await axios.post(`${url}/api/user/deactivate`);
+      
+      // Close dialog
+      setDeactivateDialogOpen(false);
+      
+      // Show success message (optional)
+      alert('Account deactivated successfully. You will be logged out.');
+      
+      // Automatically logout the user
+      logout();
+      
+    } catch (error) {
+      console.error('Error deactivating account:', error);
+      setError('Failed to deactivate account. Please try again.');
+    } finally {
+      setDeactivating(false);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setDeactivateDialogOpen(false);
+    setConfirmationText('');
   };
 
   if (!isAuthenticated) {
@@ -165,6 +227,8 @@ const Profile = () => {
       .toUpperCase() || 'U';
   };
 
+  const isConfirmationValid = confirmationText.toLowerCase() === 'deactivate';
+
   return (
     <ProfileContainer maxWidth="lg">
       {/* Profile Header */}
@@ -183,16 +247,6 @@ const Profile = () => {
                 {user?.email || 'Email not available'}
               </Typography>
             </Box>
-            {/* <Chip 
-  label="Movie Enthusiast" 
-  variant="outlined" 
-  sx={{ 
-    color: '#F5C518', 
-    borderColor: '#F5C518',
-    backgroundColor: 'transparent',
-    fontWeight: 'bold'
-  }} 
-/> */}
           </Box>
         </Box>
       </ProfileHeader>
@@ -240,20 +294,6 @@ const Profile = () => {
             </CardContent>
           </StatsCard>
         </Grid>
-
-        {/* <Grid item xs={12} sm={6} md={3}>
-          <StatsCard sx={{ background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', color: '#333' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Movie sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h4" fontWeight="bold">
-                {ratedMovies.length + reviewedMovies.length}
-              </Typography>
-              <Typography variant="body1">
-                Total Interactions
-              </Typography>
-            </CardContent>
-          </StatsCard>
-        </Grid> */}
       </Grid>
 
       <Divider sx={{ my: 4, borderColor: '#404040' }} />
@@ -292,6 +332,88 @@ const Profile = () => {
           </Typography>
         </Box>
       )}
+
+      {/* Account Deactivation */}
+      <Box sx={{ mt: 4 }}>
+        <DeactivateButton
+          variant="contained"
+          onClick={() => setDeactivateDialogOpen(true)}
+        >
+          Deactivate Account
+        </DeactivateButton>
+      </Box>
+
+      {/* Deactivation Confirmation Dialog */}
+      <Dialog
+        open={deactivateDialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: '#1E1E1E',
+            color: '#E0E0E0',
+            border: '1px solid #333',
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning />
+          Deactivate Account
+        </DialogTitle>
+        
+        <DialogContent>
+          <DialogContentText sx={{ color: '#E0E0E0', mb: 3 }}>
+            This will deactivate your account and hide your reviews from public view. You can reactivate your account anytime by simply logging in again.
+          </DialogContentText>
+          
+          <DialogContentText sx={{ color: '#E0E0E0', mt: 3, mb: 2 }}>
+            To confirm, please type <strong>"deactivate"</strong> in the field below:
+          </DialogContentText>
+          
+          <TextField
+            fullWidth
+            value={confirmationText}
+            onChange={(e) => setConfirmationText(e.target.value)}
+            placeholder="Type 'deactivate' to confirm"
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: '#2A2A2A',
+                color: '#E0E0E0',
+                '& fieldset': {
+                  borderColor: '#404040',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#F5C518',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#F5C518',
+                },
+              },
+              '& .MuiInputBase-input::placeholder': {
+                color: '#999999',
+              },
+            }}
+          />
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3 }}>
+          <Button 
+            onClick={handleCloseDialog}
+            sx={{ color: '#E0E0E0' }}
+          >
+            Cancel
+          </Button>
+          <DeactivateButton
+            onClick={handleDeactivateAccount}
+            disabled={!isConfirmationValid || deactivating}
+            startIcon={deactivating ? <CircularProgress size={20} /> : <PersonOff />}
+          >
+            {deactivating ? 'Deactivating...' : 'Deactivate Account'}
+          </DeactivateButton>
+        </DialogActions>
+      </Dialog>
     </ProfileContainer>
   );
 };
