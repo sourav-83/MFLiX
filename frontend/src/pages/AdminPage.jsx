@@ -24,7 +24,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  DialogContentText
+  DialogContentText,
+  TextField
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
@@ -102,6 +103,7 @@ const AdminPage = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [banDays, setBanDays] = useState(30);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     action: '',
@@ -193,12 +195,12 @@ const AdminPage = () => {
       await axios.post(`${url}/api/user/admin/delete_and_ban`, { 
         reportId, 
         username,
-        banDuration: 30 // 30 days
+        banDuration: banDays
       });
       
       // Remove the report from the list
       setReports(reports.filter(report => report.id !== reportId));
-      setSuccess(`Comment deleted and user ${username} banned for 30 days`);
+      setSuccess(`Comment deleted and user ${username} banned for ${banDays} days`);
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
@@ -222,6 +224,7 @@ const AdminPage = () => {
 
   const closeConfirmDialog = () => {
     setConfirmDialog({ open: false, action: '', reportId: null, username: '' });
+    setBanDays(30); // Reset to default
   };
 
   const handleConfirmAction = () => {
@@ -241,7 +244,9 @@ const AdminPage = () => {
         break;
     }
     
-    closeConfirmDialog();
+    if (action !== 'deleteAndBan') {
+      closeConfirmDialog();
+    }
   };
 
   const formatDate = (dateString) => {
@@ -254,12 +259,15 @@ const AdminPage = () => {
     });
   };
 
+  const handleBanDaysChange = (event) => {
+    const value = parseInt(event.target.value);
+    if (value >= 1 && value <= 365) {
+      setBanDays(value);
+    }
+  };
+
   return (
     <StyledContainer maxWidth="lg">
-      {/* <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
-        Admin Dashboard
-      </Typography> */}
-
       {/* Success/Error Messages */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -453,7 +461,7 @@ const AdminPage = () => {
                         onClick={() => openConfirmDialog('deleteAndBan', report.id, report.commenterUsername)}
                         disabled={actionLoading === report.id}
                       >
-                        Delete & Ban (30d)
+                        Delete & Ban
                       </ActionButton>
                     </Box>
                   </Box>
@@ -481,8 +489,23 @@ const AdminPage = () => {
             {confirmDialog.action === 'delete' && 
               'Are you sure you want to delete this comment? This action cannot be undone.'}
             {confirmDialog.action === 'deleteAndBan' && 
-              `Are you sure you want to delete this comment and ban user "${confirmDialog.username}" for 30 days? This will remove the comment and prevent them from posting reviews and comments.`}
+              `Are you sure you want to delete this comment and ban user "${confirmDialog.username}"? This will remove the comment and prevent them from posting reviews and comments.`}
           </DialogContentText>
+          
+          {confirmDialog.action === 'deleteAndBan' && (
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Ban Duration (days)"
+                type="number"
+                value={banDays}
+                onChange={handleBanDaysChange}
+                inputProps={{ min: 1, max: 365 }}
+                size="small"
+                sx={{ width: '200px' }}
+                helperText="Enter number of days (1-365)"
+              />
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={closeConfirmDialog} color="primary">
@@ -495,7 +518,7 @@ const AdminPage = () => {
           >
             {confirmDialog.action === 'ignore' && 'Ignore Report'}
             {confirmDialog.action === 'delete' && 'Delete Comment'}
-            {confirmDialog.action === 'deleteAndBan' && 'Delete & Ban User'}
+            {confirmDialog.action === 'deleteAndBan' && `Delete & Ban User (${banDays} days)`}
           </Button>
         </DialogActions>
       </Dialog>
