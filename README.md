@@ -59,7 +59,8 @@ MFL!X is a full-stack movie exploration and review platform developed as a 2-1 D
 
 ## 📸 Screenshots
 
-> _Coming soon – include screenshots/gifs of your UI here_
+![UI](screenshot.png)
+
 
 ---
 
