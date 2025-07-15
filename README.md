@@ -29,6 +29,7 @@ MFL!X is a full-stack movie exploration and review platform developed as a 2-1 D
 ### 🔐 Authentication
 - Sign up and log in with OTP verification via **EmailJS**
 - Secure session handling
+- Id deactivation and reactivation facility
 
 ### 🎬 Watchlist Management
 - Add movies to your personal watchlist
