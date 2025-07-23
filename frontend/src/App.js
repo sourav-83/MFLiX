@@ -18,7 +18,7 @@ import LoadingSpinner from './components/common/LoadingSpinner'; // You'll need 
 import { useAuth } from './components/contexts/AuthContext';
 import Profile from './pages/Profile';
 import { routePath } from './constants/route';
-
+import AddMovie from './pages/AddMovie';
 // Create a separate component for the routes to access AuthContext
 const AppRoutes = () => {
   const { loading } = useAuth();
@@ -43,6 +43,7 @@ const AppRoutes = () => {
         <Route path={routePath.profile} element={<Profile />} />
         <Route path="/actor/:actorId" element={<ActorPage />} />
         <Route path="/admin" element={<AdminPage />} /> 
+        <Route path="/admin/add-movie" element={<AddMovie />} /> 
       </Routes>
     </Router>
   );

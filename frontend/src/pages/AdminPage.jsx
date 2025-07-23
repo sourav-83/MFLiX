@@ -25,7 +25,8 @@ import {
   DialogContent,
   DialogActions,
   DialogContentText,
-  TextField
+  TextField,
+  Fab
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
@@ -38,6 +39,8 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import GavelIcon from '@mui/icons-material/Gavel';
+import AddIcon from '@mui/icons-material/Add';
+import MovieIcon from '@mui/icons-material/Movie';
 import axios from 'axios';
 import url from '../constants/url';
 import { useAuth } from '../components/contexts/AuthContext';
@@ -47,6 +50,7 @@ const StyledContainer = styled(Container)`
   padding: 20px;
   background-color: #f5f5f5;
   min-height: 100vh;
+  position: relative;
 `;
 
 const SectionPaper = styled(Paper)`
@@ -93,6 +97,35 @@ const EmptyState = styled(Box)`
   align-items: center;
   padding: 40px;
   color: #666;
+`;
+
+const AddMovieFab = styled(Fab)`
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  &:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  }
+`;
+
+const QuickActionsSection = styled(Box)`
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+`;
+
+const QuickActionCard = styled(Card)`
+  flex: 1;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
 `;
 
 const AdminPage = () => {
@@ -266,6 +299,10 @@ const AdminPage = () => {
     }
   };
 
+  const handleAddMovie = () => {
+    navigate('/admin/add-movie');
+  };
+
   return (
     <StyledContainer maxWidth="lg">
       {/* Success/Error Messages */}
@@ -279,6 +316,45 @@ const AdminPage = () => {
           {success}
         </Alert>
       )}
+
+      {/* Quick Actions Section */}
+      <QuickActionsSection>
+        <QuickActionCard onClick={handleAddMovie}>
+          <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <MovieIcon sx={{ fontSize: 48, color: '#667eea', mb: 1 }} />
+            <Typography variant="h6" gutterBottom>
+              Add New Movie
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Add movies to the database
+            </Typography>
+          </CardContent>
+        </QuickActionCard>
+        
+        <QuickActionCard>
+          <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <PersonIcon sx={{ fontSize: 48, color: '#764ba2', mb: 1 }} />
+            <Typography variant="h6" gutterBottom>
+              Top Users: {topUsers.length}
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Active platform users
+            </Typography>
+          </CardContent>
+        </QuickActionCard>
+        
+        <QuickActionCard>
+          <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <ReportIcon sx={{ fontSize: 48, color: '#f44336', mb: 1 }} />
+            <Typography variant="h6" gutterBottom>
+              Pending Reports: {reports.length}
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Reviews awaiting review
+            </Typography>
+          </CardContent>
+        </QuickActionCard>
+      </QuickActionsSection>
 
       {/* Top Users Section */}
       <SectionPaper>
@@ -366,7 +442,7 @@ const AdminPage = () => {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Chip 
+                      <Chip
                         label={user.reactionCount || 0} 
                         color="secondary" 
                         variant="outlined" 
@@ -471,6 +547,11 @@ const AdminPage = () => {
           </Grid>
         )}
       </SectionPaper>
+
+      {/* Floating Action Button for Add Movie */}
+      <AddMovieFab onClick={handleAddMovie}>
+        <AddIcon />
+      </AddMovieFab>
 
       {/* Confirmation Dialog */}
       <Dialog
