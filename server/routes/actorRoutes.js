@@ -23,7 +23,7 @@ module.exports = ({ db }) => {
          LIMIT  10`
       );
 
-      res.json(rows.rows);   // matches requested JSON
+      res.json(rows.rows);  
     } catch (err) {
       console.error('Actors list error:', err);
       res.status(500).json({ error: 'Internal server error' });

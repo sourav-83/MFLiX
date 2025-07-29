@@ -65,6 +65,33 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     }
   });
 
+  router.get("/suggestions", async (req, res) => {
+  console.log("Suggestions query parameters:", req.query);
+  const keyword = req.query.q;
+  console.log("Suggestions keyword:", keyword);
+
+  if (!keyword || keyword.trim() === "" || keyword.length < 1) {
+    return res.status(200).json([]); // Return empty array for short queries
+  }
+
+  try {
+    const suggestionsQuery = `
+      SELECT DISTINCT m.movieid, m.title
+      FROM movies m
+      WHERE LOWER(m.title) LIKE LOWER($1)
+      ORDER BY m.title ASC
+      LIMIT 5
+    `;
+
+    const result = await db.query(suggestionsQuery, [`%${keyword}%`]);
+    
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error("Error fetching movie suggestions:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
   router.get("/search", async (req, res) => {
     console.log("Query parameters:", req.query); // Debug log
     const keyword = req.query.q;
@@ -447,7 +474,6 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     }
   });
 
-  // TOP PICKS ROUTES (now part of movieRoutes, as it deals with movie suggestions)
   router.get('/top-picks', authenticateOptionalToken, async (req, res) => {
     const userID = req.user?.userID || null;
 
@@ -496,18 +522,33 @@ module.exports = ({ db, authenticateOptionalToken }) => {
       }
 
       // Fallback: either guest or no genre matches
-      if (!result || result.rows.length === 0) {
+      if (!result || result.rows.length === 0) { // This condition checks if the initial result was empty
+        let queryParams = [];
+        let userIdCondition = '';
+        let paramIndex = 1;
+
+        if (userID) {
+          // If userID exists, add a condition to exclude movies already in the user's watchlist
+          userIdCondition = `
+            AND m.MovieID NOT IN (
+              SELECT MovieID FROM WatchlistMovies wm JOIN Watchlists w ON(wm.watchlistid = w.watchlistid) WHERE w.UserID = $${paramIndex}
+            )
+          `;
+          queryParams.push(userID);
+          paramIndex++;
+        }
+
         result = await db.query(
           `SELECT
-                  m.MovieID AS MovieID,
-                  m.Title,
-                  m.TitleImage AS titleimage,
-                  COALESCE(ROUND(m.AverageRating::NUMERIC, 1), 0) AS rating,
-                  STRING_AGG(g.GenreName, ', ') AS genres,
-                  EXTRACT(YEAR FROM m.ReleaseDate)::INT AS year,
-                  LEFT(m.Synopsis, 200) || '...' AS description,
-                  m.AverageRating,
-                  m.ReleaseDate
+                    m.MovieID AS MovieID,
+                    m.Title,
+                    m.TitleImage AS titleimage,
+                    COALESCE(ROUND(m.AverageRating::NUMERIC, 1), 0) AS rating,
+                    STRING_AGG(g.GenreName, ', ') AS genres,
+                    EXTRACT(YEAR FROM m.ReleaseDate)::INT AS year,
+                    LEFT(m.Synopsis, 200) || '...' AS description,
+                    m.AverageRating,
+                    m.ReleaseDate
            FROM Movies m
            JOIN MovieGenres mg ON mg.MovieID = m.MovieID
            JOIN Genres g ON g.GenreID = mg.GenreID
@@ -519,9 +560,11 @@ module.exports = ({ db, authenticateOptionalToken }) => {
              LIMIT 3
            )
            AND m.ReleaseDate >= CURRENT_DATE - INTERVAL '10 years'
+           ${userIdCondition} -- Dynamically add this condition
            GROUP BY m.MovieID, m.Title, m.TitleImage, m.AverageRating, m.ReleaseDate, m.Synopsis
            ORDER BY m.AverageRating DESC, m.ReleaseDate DESC, m.MovieID DESC
-           LIMIT 20`
+           LIMIT 20`,
+           queryParams // Pass the dynamic queryParams
         );
       }
 
@@ -533,7 +576,6 @@ module.exports = ({ db, authenticateOptionalToken }) => {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
-
 
   return router;
 };

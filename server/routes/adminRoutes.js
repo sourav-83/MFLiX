@@ -1,21 +1,20 @@
 const express = require("express");
 
-// Module exports a function that takes dependencies (db, authenticateToken)
 module.exports = ({ db, authenticateToken }) => {
   const router = express.Router();
 
   // --- Admin-specific Middleware ---
-  // Define authenticateAdmin here, but also make it accessible for export
+
   const authenticateAdmin = (req, res, next) => {
-    // ADDED: Log req.user at the very beginning of the middleware
+    
     console.log(`[authenticateAdmin] req.user:`, req.user);
 
-    // req.user is populated by authenticateToken middleware
+
     if (!req.user || req.user.userType !== 'admin') {
       console.log(`[authenticateAdmin] Access denied: req.user is missing or userType is not 'admin'. userType: ${req.user ? req.user.userType : 'N/A'}`);
       return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
-    // This log should now correctly show the username if server.js generateToken is updated
+
     console.log(`Admin access granted for user: ${req.user.username}`);
     next();
   };
@@ -183,8 +182,8 @@ module.exports = ({ db, authenticateToken }) => {
 
   // POST /api/user/admin/delete_and_ban - Delete a comment and Ban a user
   router.post('/delete_and_ban', authenticateToken, authenticateAdmin, async (req, res) => {
-    const { reportId: reportIdRaw, username } = req.body;
-    console.log(`[Delete & Ban] Received request for reportId: ${reportIdRaw}, username: ${username}`);
+    const { reportId: reportIdRaw, username, banDuration } = req.body;
+    console.log(`[Delete & Ban] Received request for reportId: ${reportIdRaw}, username: ${username}, banDuration: ${banDuration}`);
 
     if (!reportIdRaw || !username) {
       return res.status(400).json({ message: 'Report ID and Username are required' });
@@ -241,7 +240,7 @@ module.exports = ({ db, authenticateToken }) => {
       // --- Step 2: Ban the User ---
       console.log(`[Delete & Ban] Attempting to ban user: ${username}`);
       const banUntilDate = new Date();
-      banUntilDate.setDate(banUntilDate.getDate() + 30); // Ban for 30 days
+      banUntilDate.setDate(banUntilDate.getDate() + banDuration); // Ban for 30 days
 
       const banResult = await db.query(
         `UPDATE Users

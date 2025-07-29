@@ -6,7 +6,7 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
   const router = express.Router();
 
   // AUTHENTICATION ROUTES
-  // Simplified signin - only returns token in response
+
   router.post("/signin", async (req, res) => {
     const { username, password } = req.body;
     console.log("Login attempt for:", username);
@@ -21,7 +21,7 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
       if (!isValid)
         return res.status(400).json({ message: "Invalid credentials" });
 
-      // --- NEW: Banned User Check ---
+      //  Banned User Check ---
       if (user.isbanned) {
         const now = new Date();
         const banUntil = user.banuntil ? new Date(user.banuntil) : null;
@@ -38,14 +38,13 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
             `UPDATE Users SET IsBanned = FALSE, BanUntil = NULL WHERE UserID = $1;`,
             [user.userid]
           );
-          // Update user object to reflect unbanned status for token generation
           user.isbanned = false;
           user.banuntil = null;
         }
       }
       // --- END NEW: Banned User Check ---
 
-      // --- NEW: Deactivated User Reactivation Check ---
+      // Deactivated User Reactivation Check ---
       if (!user.isactive) {
         console.log(`User ${user.username} account was deactivated. Reactivating...`);
         await db.query(
@@ -60,7 +59,11 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
       const token = generateToken(user);
 
       res.status(200).json({
-        user: { userid: user.userid, username: user.username, email: user.email },
+        user: { 
+          userID: user.userid, // Changed from 'userid' to 'userID' to match other endpoints
+          username: user.username, 
+          email: user.email 
+        },
         token: token,
       });
     } catch (err) {
@@ -72,37 +75,34 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
   router.post("/signup", async (req, res) => {
     const { username, email, password } = req.body;
     console.log("Signup attempt for:", username);
-
     try {
       // Check if user already exists
       const existingUser = await db.query(
         "SELECT * FROM users WHERE username = $1 OR email = $2",
         [username, email]
       );
-
       if (existingUser.rows.length > 0) {
         return res.status(400).json({ message: "User already exists" });
       }
-
       // Hash password
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-
       // Insert new user
       const result = await db.query(
-        "INSERT INTO users (username, email, passwordhash, usertype) VALUES ($1, $2, $3, $4) RETURNING userid, username",
+        "INSERT INTO users (username, email, passwordhash, usertype) VALUES ($1, $2, $3, $4) RETURNING userid, username, email",
         [username, email, hashedPassword, "signed_in"]
       );
-
       const newUser = result.rows[0];
       const token = generateToken(newUser); // Generate token for new user
-
+      
+      // Return both user and token (matching signin response structure)
       res.status(201).json({
         user: {
-          userid: newUser.userid,
+          userID: newUser.userid, // Changed from 'userid' to 'userID' to match other endpoints
           username: newUser.username,
           email: newUser.email,
         },
+        token: token
       });
     } catch (err) {
       console.error("Signup error:", err);
@@ -110,7 +110,7 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
     }
   });
 
-  // Simplified logout - just returns success (no cookie clearing needed)
+  
   router.post("/logout", (req, res) => {
     res.status(200).json({ message: "Logged out" });
   });
@@ -132,7 +132,7 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
 
       res.status(200).json({
         user: {
-          userid: user.userid,
+          userID: user.userid, // Changed from 'userid' to 'userID' for consistency
           username: user.username,
           usertype: user.usertype,
           email: user.email,
@@ -143,6 +143,5 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
       res.status(500).json({ message: "Token verification failed" });
     }
   });
-
   return router;
 };

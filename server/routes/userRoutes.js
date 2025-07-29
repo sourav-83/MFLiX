@@ -2,6 +2,8 @@ const express = require("express");
 
 module.exports = ({ db, authenticateToken }) => {
   const router = express.Router();
+  const bcrypt = require("bcrypt");
+  const saltRounds = 10; 
 
   // USER PROFILE & DATA ROUTES
 
@@ -200,6 +202,61 @@ module.exports = ({ db, authenticateToken }) => {
     } catch (error) {
       console.error('[Deactivate User] Error deactivating user:', error);
       res.status(500).json({ message: 'Internal server error', details: error.message });
+    }
+  });
+
+  // NEW: POST /api/user/change-password - Change user's password
+  router.post('/change-password', authenticateToken, async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+    const currentUser = req.user; // User object from authenticateToken middleware (contains userID, userType, username)
+
+    console.log(`Attempting to change password for user: ${currentUser.username}`);
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: 'Old password and new password are required.' });
+    }
+
+    if (newPassword.length < 1) { // Example: simple length check for new password
+      return res.status(400).json({ message: 'New password must be at least 1 character long.' });
+    }
+
+    try {
+      // 1. Fetch the user's current hashed password from the database
+      const userResult = await db.query(
+        `SELECT PasswordHash FROM Users WHERE UserID = $1`,
+        [currentUser.userID]
+      );
+
+      if (userResult.rows.length === 0) {
+        console.error(`User with ID ${currentUser.userID} not found during password change.`);
+        return res.status(404).json({ message: 'User not found.' });
+      }
+
+      const storedHash = userResult.rows[0].passwordhash;
+
+      // 2. Compare the oldPassword with the stored hash
+      const isPasswordValid = await bcrypt.compare(oldPassword, storedHash);
+
+      if (!isPasswordValid) {
+        console.log(`Invalid old password provided for user: ${currentUser.username}`);
+        return res.status(400).json({ message: 'Invalid old password.' });
+      }
+
+      // 3. Hash the newPassword
+      const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+      // 4. Update the user's password in the database
+      await db.query(
+        `UPDATE Users SET PasswordHash = $1 WHERE UserID = $2`,
+        [newPasswordHash, currentUser.userID]
+      );
+
+      console.log(`Password for ${currentUser.username} successfully changed.`);
+      res.status(200).json({ message: 'Password changed successfully!' });
+
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   });
 

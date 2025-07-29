@@ -4,9 +4,55 @@ module.exports = ({ db, authenticateToken }) => {
   const router = express.Router();
 
   // REVIEW ROUTES
+  router.get("/user/all", authenticateToken, async (req, res) => {
+    console.log('User reviews endpoint called');
+    console.log('User from token:', req.user);
+    
+    // Try both possible property names to handle inconsistency
+    const userId = req.user?.userID || req.user?.userid;
+    
+    if (!userId) {
+      console.error('No user ID found in token');
+      console.error('Available properties:', Object.keys(req.user || {}));
+      return res.status(400).json({ error: "User ID not found in token" });
+    }
 
+    try {
+      console.log('Fetching reviews for user ID:', userId);
+      
+      const result = await db.query(
+        `SELECT r.reviewid, r.title, r.content, r.ratingscore, r.createdat, r.hasspoiler, r.movieid, m.title AS movieTitle, m.titleimage 
+         FROM reviews r JOIN movies m ON(r.movieid = m.movieid)
+         WHERE r.userid = $1 AND r.title IS NOT NULL AND r.content IS NOT NULL
+         ORDER BY r.createdat DESC`,
+        [userId]
+      );
+
+      console.log('Database query result:', result.rows.length, 'reviews found');
+
+      const reviews = result.rows.map(row => ({
+        reviewId: row.reviewid,
+        title: row.title,
+        content: row.content,
+        ratingscore: row.ratingscore,
+        createdAt: row.createdat,
+        hasSpoiler: row.hasspoiler,
+        movieId: row.movieid,
+        movieTitle: row.movietitle, // You might want to join with movies table for actual title
+        moviePoster: row.titleimage
+      }));
+
+      console.log('Sending reviews response:', reviews);
+      res.json({ reviews });
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Internal server error", details: error.message });
+    }
+  });
+
+  // This route must come BEFORE /user/:movieId to avoid conflict
   router.get("/user/check/:movieId", authenticateToken, async (req, res) => {
-    const userId = req.user.userID;
+    const userId = req.user?.userID || req.user?.userid;
     const movieId = parseInt(req.params.movieId);
 
     if (isNaN(movieId)) {
@@ -87,9 +133,15 @@ module.exports = ({ db, authenticateToken }) => {
     }
   });
 
+  // This parameterized route should come AFTER specific routes
   router.get("/user/:movieId", authenticateToken, async (req, res) => {
-    const userID = req.user.userID;
+    const userID = req.user?.userID || req.user?.userid;
     const movieID = parseInt(req.params.movieId);
+
+    // ADDED: Check for NaN here
+    if (isNaN(movieID)) {
+      return res.status(400).json({ error: "Invalid movie ID" });
+    }
 
     try {
       const result = await db.query(
@@ -112,7 +164,7 @@ module.exports = ({ db, authenticateToken }) => {
 
   // POST /api/reviews   (create OR update if already exists)
   router.post("/", authenticateToken, async (req, res) => {
-    const userID = req.user.userID;
+    const userID = req.user?.userID || req.user?.userid;
     const { movieId, title, content, rating, hasSpoiler } = req.body;
 
     console.log("Upsert review:", { userID, movieId, title, rating, hasSpoiler });
@@ -154,7 +206,7 @@ module.exports = ({ db, authenticateToken }) => {
   });
 
   router.put("/:reviewId", authenticateToken, async (req, res) => {
-    const userID = req.user.userID;
+    const userID = req.user?.userID || req.user?.userid;
     const reviewID = parseInt(req.params.reviewId);
     const { movieid, rating, review_text, contains_spoiler } = req.body;
     console.log("Updating review:", {
@@ -200,7 +252,7 @@ module.exports = ({ db, authenticateToken }) => {
   });
 
   router.delete("/:reviewId", authenticateToken, async (req, res) => {
-    const userID = req.user.userID;
+    const userID = req.user?.userID || req.user?.userid;
     const reviewID = parseInt(req.params.reviewId);
 
     try {
@@ -227,7 +279,7 @@ module.exports = ({ db, authenticateToken }) => {
 
   router.post("/:reviewId/vote", authenticateToken, async (req, res) => {
     const reviewId = parseInt(req.params.reviewId);
-    const userId = req.user.userID;
+    const userId = req.user?.userID || req.user?.userid;
     let { voteType } = req.body;
     console.log("Voting on review:", { reviewId, userId, voteType });
 
@@ -290,11 +342,11 @@ module.exports = ({ db, authenticateToken }) => {
   });
 
   router.get(
-    "/movie/:movieId/user-votes",
+    "/movie/:movieId/votes",
     authenticateToken,
     async (req, res) => {
       const movieId = parseInt(req.params.movieId);
-      const userId = req.user.userID;
+      const userId = req.user?.userID || req.user?.userid;
 
       if (isNaN(movieId)) {
         return res.status(400).json({ error: "Invalid movie ID" });
@@ -326,7 +378,7 @@ module.exports = ({ db, authenticateToken }) => {
   // NEW: POST /api/reviews/{reviewId}/report - Report a review
   router.post("/:reviewId/report", authenticateToken, async (req, res) => {
     const reviewId = parseInt(req.params.reviewId);
-    const reporterUserId = req.user.userID;
+    const reporterUserId = req.user?.userID || req.user?.userid;
     let { reportReason } = req.body; // Use 'let' to allow modification
 
     if (isNaN(reviewId)) {
@@ -368,6 +420,7 @@ module.exports = ({ db, authenticateToken }) => {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+
 
   return router;
 };
