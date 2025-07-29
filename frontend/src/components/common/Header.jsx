@@ -1,5 +1,5 @@
 // Header.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   AppBar, 
   Toolbar, 
@@ -12,7 +12,11 @@ import {
   Avatar,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Paper,
+  List,
+  ListItem,
+  ListItemButton
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
@@ -20,6 +24,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SearchIcon from '@mui/icons-material/Search';
 import { logoURL } from '../../constants/constant';
 import { useNavigate } from 'react-router-dom';
 import { routePath } from '../../constants/route';
@@ -51,12 +56,64 @@ const StyledToolBar = styled(Toolbar)`
   }
 `;
 
+const SearchContainer = styled(Box)`
+  position: relative;
+  width: 50%;
+`;
+
 const InputSearchField = styled(InputBase)`
   background: #FFFFFF;
   height: 30px;
-  width: 50%;
+  width: 100%;
   border-radius: 5px;
   padding-left: 10px;
+  padding-right: 35px;
+`;
+
+const SearchIconContainer = styled(Box)`
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  pointer-events: none;
+`;
+
+const SuggestionsPaper = styled(Paper)`
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  margin-top: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+`;
+
+const SuggestionItem = styled(ListItem)`
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const SuggestionText = styled(Typography)`
+  color: white;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const Logo = styled('img')({
@@ -127,10 +184,14 @@ const Header = () => {
   const [open, setOpen] = useState(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const searchRef = useRef(null);
+  const suggestionsTimeoutRef = useRef(null);
 
   const handleClick = (e) => {
     setOpen(e.currentTarget);
@@ -171,6 +232,41 @@ const Header = () => {
     }
   };
 
+  // Function to fetch search suggestions
+  const fetchSuggestions = async (query) => {
+    if (!query.trim() || query.length < 1) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${url}/api/movies/suggestions?q=${encodeURIComponent(query)}`);
+      setSuggestions(response.data || []);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Debounced search function
+  const handleSearchInputChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    // Clear previous timeout
+    if (suggestionsTimeoutRef.current) {
+      clearTimeout(suggestionsTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    suggestionsTimeoutRef.current = setTimeout(() => {
+      fetchSuggestions(value);
+    }, 300); // 300ms delay
+  };
+
   const handleAuth = () => {
     if (isAuthenticated) {
       handleLogout();
@@ -199,8 +295,16 @@ const Header = () => {
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
+      setShowSuggestions(false);
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
+  };
+
+  const handleSuggestionClick = (movieTitle, movieId) => {
+    setSearchQuery('');
+    setShowSuggestions(false);
+    // Navigate to movie details page or search results
+    navigate(`/movie/${movieId}`);
   };
 
   const handleWatchlistClick = () => {
@@ -218,12 +322,35 @@ const Header = () => {
     return username.charAt(0).toUpperCase();
   };
 
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Reset admin status when user logs out or authentication changes
   useEffect(() => {
     if (!isAuthenticated) {
       setIsAdmin(false);
     }
   }, [isAuthenticated]);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (suggestionsTimeoutRef.current) {
+        clearTimeout(suggestionsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <AppBar position="static">
@@ -237,12 +364,40 @@ const Header = () => {
 
         <HeaderMenu open={open} handleClose={handleClose} />
 
-        <InputSearchField
-          placeholder="Search movies..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleSearch}
-        />
+        <SearchContainer ref={searchRef}>
+          <InputSearchField
+            placeholder=" Search movies..."
+            value={searchQuery}
+            onChange={handleSearchInputChange}
+            onKeyDown={handleSearch}
+            onFocus={() => {
+              if (suggestions.length > 0) {
+                setShowSuggestions(true);
+              }
+            }}
+          />
+          <SearchIconContainer>
+            <SearchIcon fontSize="small" />
+          </SearchIconContainer>
+          
+          {showSuggestions && suggestions.length > 0 && (
+            <SuggestionsPaper>
+              <List disablePadding>
+                {suggestions.slice(0, 5).map((movie) => (
+                  <SuggestionItem
+                    key={movie.movieid}
+                    onClick={() => handleSuggestionClick(movie.title, movie.movieid)}
+                    disablePadding
+                  >
+                    <ListItemButton sx={{ padding: '8px 12px' }}>
+                      <SuggestionText>{movie.title}</SuggestionText>
+                    </ListItemButton>
+                  </SuggestionItem>
+                ))}
+              </List>
+            </SuggestionsPaper>
+          )}
+        </SearchContainer>
 
         <Box onClick={handleWatchlistClick}>
           <BookmarkAddIcon />

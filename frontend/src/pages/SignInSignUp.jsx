@@ -298,10 +298,14 @@ const SignInSignUp = () => {
         }
 
         const credentials = {
-          username: form.username, password: form.password,
+          username: form.username,
+          password: form.password,
           user_type_enum: 'signed_in'
         };
+
+        console.log('Attempting sign in with:', credentials);
         const result = await login(credentials);
+        console.log('Sign in result:', result);
 
         if (result.success) {
           setSuccess("Sign in successful!");
@@ -328,19 +332,33 @@ const SignInSignUp = () => {
           return;
         }
 
+        // Clean credentials for signup - only send what backend expects
         const credentials = {
           username: form.username,
           email: form.email,
           password: form.password
         };
 
+        console.log('Attempting sign up with:', credentials);
         const result = await login(credentials);
+        console.log('Sign up result:', result);
 
         if (result.success) {
           setSuccess("Account created successfully!");
+
+          // Add a debug check here
+          console.log('Current auth state after signup:', {
+            user: result.user,
+            isAuthenticated,
+            storedUser: localStorage.getItem('user'),
+            storedToken: localStorage.getItem('token')
+          });
+
           setTimeout(() => navigate("/"), 1000);
         } else {
+          // Show the actual error message from backend
           setError(result.error || "Registration failed");
+          console.error('Signup failed with error:', result.error);
         }
       }
     } catch (err) {

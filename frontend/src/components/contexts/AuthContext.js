@@ -1,4 +1,4 @@
-// contexts/AuthContext.js - Updated with Deactivate Function
+// contexts/AuthContext.js - Fixed version
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import url from '../../constants/url';
@@ -82,10 +82,39 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const endpoint = credentials.email ? '/api/auth/signup' : '/api/auth/signin';
-      const response = await axios.post(`${url}${endpoint}`, credentials);
+      
+      // Clean credentials - only send what backend expects
+      const cleanCredentials = credentials.email 
+        ? { username: credentials.username, email: credentials.email, password: credentials.password }
+        : { username: credentials.username, password: credentials.password, user_type_enum: credentials.user_type_enum };
+      
+      // Debug: Log what we're sending
+      console.log('Sending request to:', `${url}${endpoint}`);
+      console.log('Request payload:', cleanCredentials);
+      
+      const response = await axios.post(`${url}${endpoint}`, cleanCredentials);
 
-      const userData = response.data.user;
-      const token = response.data.token;
+      console.log('Login/Signup response:', response.data); // Debug log
+
+      // Handle different response structures
+      const userData = response.data.user || response.data.data?.user;
+      const token = response.data.token || response.data.data?.token;
+      
+      if (!userData) {
+        console.error('Missing user data in response:', response.data);
+        return { 
+          success: false, 
+          error: 'Invalid response from server. Missing user data.' 
+        };
+      }
+
+      if (!token) {
+        console.error('Missing token in response:', response.data);
+        return { 
+          success: false, 
+          error: 'Invalid response from server. Missing authentication token.' 
+        };
+      }
       
       // Store user and token
       setUser(userData);
@@ -93,12 +122,17 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('token', token);
       
+      console.log('Successfully stored user and token:', { userData, token }); // Debug log
+      
       return { success: true, user: userData };
     } catch (error) {
       console.error('Login error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Authentication failed' 
+        error: error.response?.data?.message || error.response?.data?.error || 'Authentication failed' 
       };
     }
   };

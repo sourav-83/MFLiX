@@ -197,7 +197,7 @@ function UserRatingDisplay({ movieId, onRatingChanged }) {
       const token = localStorage.getItem('token');
       
       // Update rating via PUT request (you'll need this endpoint)
-      await axios.put(`${url}/api/reviews/user/rating/${movieId}`, {
+      await axios.put(`${url}/api/user/rating/${movieId}`, {
         rating: tempRating
       }, {
         headers: {
