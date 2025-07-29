@@ -15,14 +15,13 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     }
   });
 
-  // Get top-rated movies (e.g., rating >= 8.0), limit to 20
+  // Get top-rated movies
   router.get("/toprated", async (req, res) => {
     try {
       const result = await db.query(`
         SELECT * FROM movies
-        WHERE averagerating >= 8.5
         ORDER BY averagerating DESC
-        LIMIT 20
+        LIMIT 13
       `);
       res.status(200).json(result.rows);
     } catch (err) {
@@ -31,16 +30,17 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     }
   });
 
-  // Get popular movies (based on number of reviews * rating), limit to 20
+  // Get popular movies
   router.get("/popular", async (req, res) => {
     try {
       const result = await db.query(`
         SELECT m.*, COUNT(r.reviewid) AS review_count
         FROM movies m
         LEFT JOIN reviews r ON m.movieid = r.movieid
+        WHERE m.releasedate >= CURRENT_DATE - INTERVAL '10 years'
         GROUP BY m.movieid
         ORDER BY review_count DESC, m.averagerating DESC
-        LIMIT 20
+        LIMIT 20;
       `);
       res.status(200).json(result.rows);
     } catch (err) {
@@ -49,7 +49,7 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     }
   });
 
-  // Get upcoming movies (release date > today), limit to 20
+  // Get upcoming movies
   router.get("/upcoming", async (req, res) => {
     try {
       const result = await db.query(`
@@ -66,16 +66,16 @@ module.exports = ({ db, authenticateOptionalToken }) => {
   });
 
   router.get("/suggestions", async (req, res) => {
-  console.log("Suggestions query parameters:", req.query);
-  const keyword = req.query.q;
-  console.log("Suggestions keyword:", keyword);
+    console.log("Suggestions query parameters:", req.query);
+    const keyword = req.query.q;
+    console.log("Suggestions keyword:", keyword);
 
-  if (!keyword || keyword.trim() === "" || keyword.length < 1) {
-    return res.status(200).json([]); // Return empty array for short queries
-  }
+    if (!keyword || keyword.trim() === "" || keyword.length < 1) {
+      return res.status(200).json([]); // Return empty array for short queries
+    }
 
-  try {
-    const suggestionsQuery = `
+    try {
+      const suggestionsQuery = `
       SELECT DISTINCT m.movieid, m.title
       FROM movies m
       WHERE LOWER(m.title) LIKE LOWER($1)
@@ -83,14 +83,14 @@ module.exports = ({ db, authenticateOptionalToken }) => {
       LIMIT 5
     `;
 
-    const result = await db.query(suggestionsQuery, [`%${keyword}%`]);
-    
-    res.status(200).json(result.rows);
-  } catch (err) {
-    console.error("Error fetching movie suggestions:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      const result = await db.query(suggestionsQuery, [`%${keyword}%`]);
+
+      res.status(200).json(result.rows);
+    } catch (err) {
+      console.error("Error fetching movie suggestions:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
 
   router.get("/search", async (req, res) => {
     console.log("Query parameters:", req.query); // Debug log
@@ -286,7 +286,12 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     const movieId = req.params.id;
 
     // Validate movieId
-    if (!movieId || movieId === "undefined" || isNaN(parseInt(movieId)) || parseInt(movieId) <= 0) {
+    if (
+      !movieId ||
+      movieId === "undefined" ||
+      isNaN(parseInt(movieId)) ||
+      parseInt(movieId) <= 0
+    ) {
       return res.status(400).json({ message: "Invalid movie ID" });
     }
 
@@ -365,11 +370,14 @@ module.exports = ({ db, authenticateOptionalToken }) => {
 
       res.json(movie);
     } catch (err) {
-      console.error("Error fetching movie details for movieId:", parsedMovieId, err);
+      console.error(
+        "Error fetching movie details for movieId:",
+        parsedMovieId,
+        err
+      );
       res.status(500).json({ message: "Server error" });
     }
   });
-
 
   //Suggest similar movies based on genres and language
   router.get("/:id/similar", authenticateOptionalToken, async (req, res) => {
@@ -377,7 +385,6 @@ module.exports = ({ db, authenticateOptionalToken }) => {
     const userID = req.user?.userID || null; // Get authenticated user ID if available
 
     try {
-      // Step 1: Get the genres and language of the original movie
       const movieInfoQuery = `
         SELECT m.language, ARRAY_AGG(g.genrename) AS genres
         FROM movies m
@@ -394,22 +401,20 @@ module.exports = ({ db, authenticateOptionalToken }) => {
 
       const { language, genres: genreNames } = movieInfoResult.rows[0]; // Renamed to genreNames
 
-      // NEW: Fetch GenreIDs from GenreNames
       let genreIds = [];
       if (genreNames && genreNames.length > 0) {
         const genreIdsResult = await db.query(
           `SELECT GenreID FROM Genres WHERE GenreName = ANY($1);`,
           [genreNames]
         );
-        genreIds = genreIdsResult.rows.map(row => row.genreid);
+        genreIds = genreIdsResult.rows.map((row) => row.genreid);
       }
 
-      // Step 2: Find other movies with at least one matching genre or same language
       // Prioritize movies not in the user's watchlist if authenticated
       let similarMoviesQuery;
       let queryParams;
 
-      if (userID && genreIds.length > 0) { // Use genreIds here
+      if (userID && genreIds.length > 0) {
         // If user is logged in and has genres in watchlist, suggest based on those
         similarMoviesQuery = `
           SELECT
@@ -465,115 +470,13 @@ module.exports = ({ db, authenticateOptionalToken }) => {
       const result = await db.query(similarMoviesQuery, queryParams);
 
       // Remove extra fields from the response
-      const cleanedRows = result.rows.map(({ averagerating, releasedate, ...rest }) => rest);
+      const cleanedRows = result.rows.map(
+        ({ averagerating, releasedate, ...rest }) => rest
+      );
       res.status(200).json(cleanedRows);
-
     } catch (error) {
       console.error("Error fetching similar movies:", error);
       res.status(500).json({ message: "Server error fetching similar movies" });
-    }
-  });
-
-  router.get('/top-picks', authenticateOptionalToken, async (req, res) => {
-    const userID = req.user?.userID || null;
-
-    try {
-      let result;
-
-      if (userID) {
-        const { rows: watchlistGenres } = await db.query(
-          `SELECT DISTINCT mg.GenreID
-           FROM WatchlistMovies wm
-           JOIN MovieGenres mg ON wm.MovieID = mg.MovieID
-           JOIN Watchlists w ON wm.WatchlistID = w.WatchlistID
-           WHERE w.UserID = $1
-           ORDER BY mg.GenreID`,
-          [userID]
-        );
-
-        const genreIds = watchlistGenres.map(g => g.genreid);
-
-        if (genreIds.length > 0) {
-          result = await db.query(
-            `SELECT
-                    m.MovieID AS MovieID,
-                    m.Title,
-                    m.TitleImage AS titleimage,
-                    COALESCE(ROUND(m.AverageRating::NUMERIC, 1), 0) AS rating,
-                    STRING_AGG(g.GenreName, ', ') AS genres,
-                    EXTRACT(YEAR FROM m.ReleaseDate)::INT AS year,
-                    LEFT(m.Synopsis, 200) || '...' AS description,
-                    m.AverageRating,
-                    m.ReleaseDate
-             FROM Movies m
-             JOIN MovieGenres mg ON mg.MovieID = m.MovieID
-             JOIN Genres g ON g.GenreID = mg.GenreID
-             WHERE mg.GenreID = ANY ($1)
-               AND m.MovieID NOT IN (
-                 SELECT MovieID FROM WatchlistMovies wm JOIN Watchlists w ON(wm.watchlistid = w.watchlistid) WHERE w.UserID = $2
-               )
-               AND m.ReleaseDate >= CURRENT_DATE - INTERVAL '10 years'
-             GROUP BY m.MovieID, m.Title, m.TitleImage, m.AverageRating, m.ReleaseDate, m.Synopsis
-             ORDER BY m.AverageRating DESC, m.ReleaseDate DESC, m.MovieID DESC
-             LIMIT 20`,
-            [genreIds, userID]
-          );
-        }
-      }
-
-      // Fallback: either guest or no genre matches
-      if (!result || result.rows.length === 0) { // This condition checks if the initial result was empty
-        let queryParams = [];
-        let userIdCondition = '';
-        let paramIndex = 1;
-
-        if (userID) {
-          // If userID exists, add a condition to exclude movies already in the user's watchlist
-          userIdCondition = `
-            AND m.MovieID NOT IN (
-              SELECT MovieID FROM WatchlistMovies wm JOIN Watchlists w ON(wm.watchlistid = w.watchlistid) WHERE w.UserID = $${paramIndex}
-            )
-          `;
-          queryParams.push(userID);
-          paramIndex++;
-        }
-
-        result = await db.query(
-          `SELECT
-                    m.MovieID AS MovieID,
-                    m.Title,
-                    m.TitleImage AS titleimage,
-                    COALESCE(ROUND(m.AverageRating::NUMERIC, 1), 0) AS rating,
-                    STRING_AGG(g.GenreName, ', ') AS genres,
-                    EXTRACT(YEAR FROM m.ReleaseDate)::INT AS year,
-                    LEFT(m.Synopsis, 200) || '...' AS description,
-                    m.AverageRating,
-                    m.ReleaseDate
-           FROM Movies m
-           JOIN MovieGenres mg ON mg.MovieID = m.MovieID
-           JOIN Genres g ON g.GenreID = mg.GenreID
-           WHERE m.Language IN (
-             SELECT Language
-             FROM Movies
-             GROUP BY Language
-             ORDER BY COUNT(*) DESC
-             LIMIT 3
-           )
-           AND m.ReleaseDate >= CURRENT_DATE - INTERVAL '10 years'
-           ${userIdCondition} -- Dynamically add this condition
-           GROUP BY m.MovieID, m.Title, m.TitleImage, m.AverageRating, m.ReleaseDate, m.Synopsis
-           ORDER BY m.AverageRating DESC, m.ReleaseDate DESC, m.MovieID DESC
-           LIMIT 20`,
-           queryParams // Pass the dynamic queryParams
-        );
-      }
-
-      // Remove extra fields from the response
-      const cleanedRows = result.rows.map(({ averagerating, releasedate, ...rest }) => rest);
-      res.json(cleanedRows);
-    } catch (err) {
-      console.error('Top-picks error:', err);
-      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

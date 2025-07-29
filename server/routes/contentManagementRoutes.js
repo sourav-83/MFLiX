@@ -11,11 +11,10 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
   // URL: /api/content-management/genres
   router.get('/genres', async (req, res) => {
     try {
-        // Removed double quotes from "Genres" and "GenreID", "GenreName"
         const result = await db.query('SELECT GenreID, GenreName FROM Genres ORDER BY GenreName');
-        // Ensure column names are returned as expected by frontend (e.g., camelCase or specific casing)
+        
         const genres = result.rows.map(row => ({
-            genreId: row.genreid, // PostgreSQL returns lowercase by default
+            genreId: row.genreid, 
             genreName: row.genrename
         }));
         res.json(genres);
@@ -25,14 +24,13 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
     }
   });
 
-  // 2. Get All Languages (assuming `Movies` table's Language column defines available languages)
+  // 2. Get All Languages 
   // Method: GET
   // URL: /api/content-management/languages
   router.get('/languages', async (req, res) => {
     try {
-        // Removed double quotes from "Movies" and "Language"
         const result = await db.query('SELECT DISTINCT Language FROM Movies WHERE Language IS NOT NULL ORDER BY Language');
-        const languages = result.rows.map(row => row.language); // Access as lowercase
+        const languages = result.rows.map(row => row.language); 
         res.json(languages);
     } catch (err) {
         console.error('Error fetching languages:', err);
@@ -70,8 +68,7 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
         return res.status(400).json({ message: 'Name query parameter is required.' });
     }
     try {
-        // Removed double quotes from "Directors" and "Name", but kept for "DirectorID" AS "id"
-        const result = await db.query(
+         const result = await db.query(
             'SELECT DirectorID AS id, Name AS name FROM Directors WHERE Name ILIKE $1 ORDER BY Name LIMIT 10',
             [`%${name}%`]
         );
@@ -122,7 +119,7 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
         const titleImage = title.replace(/\s+/g, '') + '_title.png'; // Remove spaces and add suffix
 
         // 1. Insert into Movies table
-        // Added TitleImage to the INSERT statement
+
         const movieInsertResult = await client.query(
             `INSERT INTO Movies (Title, Synopsis, ReleaseDate, Duration, PosterImage, Language, TitleImage)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING MovieID`,
@@ -135,18 +132,15 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
             for (const genreName of genres) {
                 let genreId;
                 // Check if genre exists
-                // Removed double quotes from table name and column names
                 const existingGenre = await client.query('SELECT GenreID FROM Genres WHERE GenreName = $1', [genreName]);
                 if (existingGenre.rows.length > 0) {
                     genreId = existingGenre.rows[0].genreid; // Access as lowercase
                 } else {
                     // Insert new genre if it doesn't exist
-                    // Removed double quotes from table name and column names
                     const newGenre = await client.query('INSERT INTO Genres (GenreName) VALUES ($1) RETURNING GenreID', [genreName]);
                     genreId = newGenre.rows[0].genreid; // Access as lowercase
                 }
                 // Link movie and genre
-                // Removed double quotes from table name and column names
                 await client.query('INSERT INTO MovieGenres (MovieID, GenreID) VALUES ($1, $2)', [movieId, genreId]);
             }
         }
@@ -159,7 +153,6 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
                 let personId;
                 if (person.isNew) {
                     // Check if a person with this name already exists (case-insensitive)
-                    // Removed double quotes from tableName and column name
                     const existingPerson = await client.query(
                         `SELECT ${personIdColumn} FROM ${tableName} WHERE Name ILIKE $1`,
                         [person.name]
@@ -169,7 +162,6 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
                         personId = existingPerson.rows[0][personIdColumn.toLowerCase()]; // Access as lowercase
                     } else {
                         // Insert new person with full details
-                        // Removed double quotes from tableName and column names
                         const newPerson = await client.query(
                             `INSERT INTO ${tableName} (Name, Image, DateOfBirth, Nationality, Bio)
                              VALUES ($1, $2, $3, $4, $5) RETURNING ${personIdColumn}`,
@@ -178,18 +170,15 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
                         personId = newPerson.rows[0][personIdColumn.toLowerCase()]; // Access as lowercase
                     }
                 } else {
-                    personId = person.id; // Use existing ID
+                    personId = person.id; 
                 }
 
-                // Link movie and person in the respective join table
                 if (linkTable === 'Casts') {
-                    // Removed double quotes from "Casts" and column names
                     await client.query(
                         'INSERT INTO Casts (MovieID, ActorID, RoleName) VALUES ($1, $2, $3)',
                         [movieId, personId, person.roleName || null] // RoleName can be null
                     );
                 } else {
-                    // Removed double quotes from linkTable and column names
                     await client.query(
                         `INSERT INTO ${linkTable} (MovieID, ${linkPersonIdColumn}) VALUES ($1, $2)`,
                         [movieId, personId]
@@ -208,8 +197,7 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
         await processPerson(writers, 'Writers', 'MovieWriters', 'WriterID', 'WriterID');
 
         // 6. Process Trailer
-        if (trailer && trailer.url) { // Ensure trailer object and URL exist
-            // Removed double quotes from "Trailers" and column names
+        if (trailer && trailer.url) { 
             await client.query(
                 `INSERT INTO Trailers (MovieID, Title, URL, ReleaseDate, Duration)
                  VALUES ($1, $2, $3, $4, $5)`,
@@ -223,7 +211,6 @@ module.exports = ({ db, authenticateAdmin, authenticateToken }) => {
     } catch (err) {
         await client.query('ROLLBACK'); // Rollback transaction on error
         console.error('Error adding movie:', err);
-        // Distinguish between client-side validation errors and server errors
         if (err.code === '23505') { // PostgreSQL unique violation error code
              if (err.constraint === 'unique_movie_title') { // Example custom unique constraint name (if you have one)
                  return res.status(409).json({ message: 'A movie with this title already exists.' });

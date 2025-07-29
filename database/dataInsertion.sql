@@ -1022,3 +1022,4 @@ INSERT INTO Casts (MovieID, ActorID, RoleName, AverageRating) VALUES
 ((SELECT MovieID FROM Movies WHERE Title = 'Now You See Me: Now You Don''t'), (SELECT ActorID FROM Actors WHERE Name = 'Jesse Eisenberg'), 'J. Daniel Atlas', NULL),
 ((SELECT MovieID FROM Movies WHERE Title = 'Now You See Me: Now You Don''t'), (SELECT ActorID FROM Actors WHERE Name = 'Woody Harrelson'), 'Merritt McKinney', NULL);
 
+SELECT 

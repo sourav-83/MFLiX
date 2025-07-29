@@ -52,7 +52,7 @@ module.exports = ({ db, authenticateToken }) => {
     ) {
       return res
         .status(400)
-        .json({ error: "castId, movieId, rating(0‑10) required" });
+        .json({ error: "castId, movieId, rating(0-10) required" });
     }
 
     // optional: verify the cast row belongs to this movieId

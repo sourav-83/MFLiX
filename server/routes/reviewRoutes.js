@@ -8,7 +8,7 @@ module.exports = ({ db, authenticateToken }) => {
     console.log('User reviews endpoint called');
     console.log('User from token:', req.user);
     
-    // Try both possible property names to handle inconsistency
+
     const userId = req.user?.userID || req.user?.userid;
     
     if (!userId) {
@@ -38,7 +38,7 @@ module.exports = ({ db, authenticateToken }) => {
         createdAt: row.createdat,
         hasSpoiler: row.hasspoiler,
         movieId: row.movieid,
-        movieTitle: row.movietitle, // You might want to join with movies table for actual title
+        movieTitle: row.movietitle, 
         moviePoster: row.titleimage
       }));
 
@@ -50,7 +50,6 @@ module.exports = ({ db, authenticateToken }) => {
     }
   });
 
-  // This route must come BEFORE /user/:movieId to avoid conflict
   router.get("/user/check/:movieId", authenticateToken, async (req, res) => {
     const userId = req.user?.userID || req.user?.userid;
     const movieId = parseInt(req.params.movieId);
@@ -105,7 +104,7 @@ module.exports = ({ db, authenticateToken }) => {
              u.userid AS "user.id", u.username AS "user.username", u.email AS "user.email"
       FROM reviews r
       JOIN users u ON r.userid = u.userid
-      WHERE r.movieid = $1 AND u.IsActive = TRUE -- ADDED: Filter by active users
+      WHERE r.movieid = $1 AND u.IsActive = TRUE 
       ORDER BY r.createdat DESC
     `;
       const result = await db.query(query, [movieId]);
@@ -218,7 +217,6 @@ module.exports = ({ db, authenticateToken }) => {
     });
 
     try {
-      // Ensure the user owns the review
       const existing = await db.query(
         "SELECT * FROM Reviews WHERE ReviewID = $1 AND UserID = $2",
         [reviewID, userID]
@@ -287,7 +285,6 @@ module.exports = ({ db, authenticateToken }) => {
       return res.status(400).json({ error: "Invalid vote type" });
     }
 
-    // Convert to actual enum values
     voteType = voteType === "upvote" ? "up" : "down";
 
     try {

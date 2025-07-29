@@ -18,7 +18,7 @@ module.exports = ({ db }) => {
            COALESCE(ROUND(a.AverageRating::NUMERIC,1),0) AS popularity_score
          FROM   Actors a
          LEFT JOIN Casts c ON c.ActorID = a.ActorID
-         GROUP  BY a.ActorID
+         GROUP  BY a.ActorID, a.Name, a.Image, a.Bio
          ORDER  BY popularity_score DESC, movies_count DESC
          LIMIT  10`
       );

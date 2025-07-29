@@ -103,7 +103,6 @@ module.exports = ({ db, authenticateToken }) => {
       );
 
       if (result.rows.length === 0) {
-        // Return empty array if no watchlist exists
         return res.status(200).json([]);
       }
 
@@ -125,7 +124,6 @@ module.exports = ({ db, authenticateToken }) => {
         }
       });
 
-      // Return just the movies array
       res.status(200).json(movies);
       console.log(movies.length, "movies found in watchlist for user:", userID);
     } catch (err) {
@@ -135,7 +133,7 @@ module.exports = ({ db, authenticateToken }) => {
   });
 
   router.get(
-    "/check/:movieId", // Path changed to "/check/:movieId" as it's mounted under /api/watchlist
+    "/check/:movieId", 
     authenticateToken,
     async (req, res) => {
       const userId = req.user.userID;

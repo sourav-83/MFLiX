@@ -41,7 +41,6 @@ module.exports = ({ db, authenticateToken }) => {
     }
   });
 
-  // Update user's movie rating (moved from /api/reviews/user/rating/:movieId to here for user-centric focus)
   router.put("/rating/:movieId", authenticateToken, async (req, res) => {
     const userId = req.user.userID;
     const movieId = parseInt(req.params.movieId, 10);
@@ -135,10 +134,7 @@ module.exports = ({ db, authenticateToken }) => {
 
   // ADMIN ROUTE: Check if user is admin
   router.get('/is_admin', authenticateToken, async (req, res) => {
-    /**
-     * Endpoint to check if the authenticated user is an administrator.
-     * Returns: {"isAdmin": true/false}
-     */
+    
     const userId = req.user.userID; // UserID from authenticated token
 
     try {

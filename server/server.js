@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const db = require("./db"); // Your existing database connection module
+const db = require("./db");
 const cookieParser = require("cookie-parser");
 
 const app = express();
@@ -20,20 +20,20 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// --- JWT Helper Functions (kept here as they are general utilities) ---
+
 const generateToken = (user) => {
   return jwt.sign(
     {
       userID: user.userid,
       userType: user.usertype,
-      username: user.username, // Include username in the JWT payload
+      username: user.username, 
     },
     process.env.JWT_SECRET,
     { expiresIn: "1h" }
   );
 };
 
-// --- JWT Authentication Middleware (kept here as they are general utilities) ---
+// --- JWT Authentication Middleware ---
 const authenticateToken = (req, res, next) => {
   console.log("=== Authentication Debug ===");
   console.log("Authorization header:", req.headers.authorization);
@@ -70,23 +70,20 @@ const authenticateOptionalToken = (req, _res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      // Invalid token → treat as guest (do NOT throw 403 here)
       req.user = null;
     } else {
-      req.user = user;    // signed‑in user payload
+      req.user = user;    
     }
     next();
   });
 };
 
 // --- Import Route Modules and their dependencies ---
-// Import the adminRoutes module and extract both the router and authenticateAdmin
 const adminModule = require("./routes/adminRoutes")({ db, authenticateToken });
-const adminRoutes = adminModule.router; // The router for /api/user/admin
-const authenticateAdmin = adminModule.authenticateAdmin; // The middleware to be reused
+const adminRoutes = adminModule.router; 
+const authenticateAdmin = adminModule.authenticateAdmin; 
 
 const authRoutes = require("./routes/authRoutes");
-// FIXED TYPO HERE: Removed extra './('
 const userRoutes = require("./routes/userRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const movieRoutes = require("./routes/movieRoutes");
@@ -94,21 +91,19 @@ const actorRoutes = require("./routes/actorRoutes");
 const watchlistRoutes = require("./routes/watchlistRoutes");
 const castRatingRoutes = require("./routes/castRatingRoutes");
 const contentManagementRoutes = require("./routes/contentManagementRoutes"); // Import content management routes
+const topPicksRoutes = require("./routes/topPicksRoutes");
 
-// --- Mount Route Modules ---
-// Pass db and authentication middleware to route modules
+
 app.use("/api/auth", authRoutes({ db, generateToken, authenticateToken }));
 app.use("/api/user", userRoutes({ db, authenticateToken }));
 app.use("/api/reviews", reviewRoutes({ db, authenticateToken }));
-// movieRoutes no longer needs authenticateAdmin directly from server.js for its own routes
 app.use("/api/movies", movieRoutes({ db, authenticateOptionalToken }));
-app.use("/api/actors", actorRoutes({ db })); // Actors don't seem to need auth middleware directly on their routes
+app.use("/api/actors", actorRoutes({ db })); 
 app.use("/api/watchlist", watchlistRoutes({ db, authenticateToken }));
-app.use("/api/users/watchlist", watchlistRoutes({ db, authenticateToken })); // Watchlist GET also uses this path
+app.use("/api/users/watchlist", watchlistRoutes({ db, authenticateToken })); 
 app.use("/api/cast", castRatingRoutes({ db, authenticateToken }));
-app.use("/api/top-picks", movieRoutes({ db, authenticateOptionalToken })); // Top picks is part of movie logic
-app.use("/api/user/admin", adminRoutes); // Use the extracted adminRoutes router
-// NEW: Mount content management routes, passing both authenticateToken and authenticateAdmin
+app.use("/api/top-picks", topPicksRoutes({ db, authenticateOptionalToken })); 
+app.use("/api/user/admin", adminRoutes);
 app.use("/api/content-management", contentManagementRoutes({ db, authenticateAdmin, authenticateToken }));
 
 

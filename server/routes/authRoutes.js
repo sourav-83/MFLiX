@@ -42,7 +42,6 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
           user.banuntil = null;
         }
       }
-      // --- END NEW: Banned User Check ---
 
       // Deactivated User Reactivation Check ---
       if (!user.isactive) {
@@ -54,13 +53,13 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
         // Update user object to reflect active status for token generation
         user.isactive = true;
       }
-      // --- END NEW: Deactivated User Reactivation Check ---
+
 
       const token = generateToken(user);
 
       res.status(200).json({
         user: { 
-          userID: user.userid, // Changed from 'userid' to 'userID' to match other endpoints
+          userID: user.userid, 
           username: user.username, 
           email: user.email 
         },
@@ -98,7 +97,7 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
       // Return both user and token (matching signin response structure)
       res.status(201).json({
         user: {
-          userID: newUser.userid, // Changed from 'userid' to 'userID' to match other endpoints
+          userID: newUser.userid, 
           username: newUser.username,
           email: newUser.email,
         },
@@ -132,7 +131,7 @@ module.exports = ({ db, generateToken, authenticateToken }) => {
 
       res.status(200).json({
         user: {
-          userID: user.userid, // Changed from 'userid' to 'userID' for consistency
+          userID: user.userid, 
           username: user.username,
           usertype: user.usertype,
           email: user.email,
