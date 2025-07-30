@@ -1,4 +1,5 @@
 const express = require("express");
+const emailjs = require('emailjs-com');
 
 module.exports = ({ db, authenticateToken }) => {
   const router = express.Router();
@@ -259,6 +260,7 @@ module.exports = ({ db, authenticateToken }) => {
       let reviewDeleted = false;
       let userBanned = false;
       let bannedUsername = null;
+      let bannedEmail = null; // Variable to store banned user's email
       let banUntil = null;
       let reviewId = null;
 
@@ -280,8 +282,8 @@ module.exports = ({ db, authenticateToken }) => {
 
           const deleteReviewResult = await db.query(
             `DELETE FROM Reviews
-           WHERE ReviewID = $1
-           RETURNING ReviewID;`,
+             WHERE ReviewID = $1
+             RETURNING ReviewID;`,
             [reviewId]
           );
 
@@ -294,32 +296,43 @@ module.exports = ({ db, authenticateToken }) => {
             console.log(
               `[Delete & Ban] Review with ID ${reviewId} not found or already deleted.`
             );
-            // Continue to ban user even if review was already gone
           }
         } else {
           console.log(
             `[Delete & Ban] No report found with ID ${reportId}. Cannot delete review.`
           );
-          // Continue to ban user even if report was not found
         }
 
         // --- Step 2: Ban the User ---
         console.log(`[Delete & Ban] Attempting to ban user: ${username}`);
         const banUntilDate = new Date();
-        banUntilDate.setDate(banUntilDate.getDate() + banDuration); // Ban for 30 days
+        // Ensure banDuration is a number before adding it
+        const banDurationDays = parseInt(banDuration, 10);
+        if (isNaN(banDurationDays)) {
+            console.warn(`[Delete & Ban] Invalid banDuration received: ${banDuration}. Defaulting to 30 days.`);
+            banUntilDate.setDate(banUntilDate.getDate() + 30); // Default to 30 days if invalid
+        } else {
+            banUntilDate.setDate(banUntilDate.getDate() + banDurationDays);
+        }
+
 
         const banResult = await db.query(
           `UPDATE Users
-         SET IsBanned = TRUE, BanUntil = $1
-         WHERE Username = $2
-         RETURNING UserID, Username, IsBanned, BanUntil;`,
+           SET IsBanned = TRUE, BanUntil = $1
+           WHERE Username = $2
+           RETURNING UserID, Username, Email, IsBanned, BanUntil;`,
           [banUntilDate, username]
         );
 
         if (banResult.rowCount > 0) {
           userBanned = true;
+          bannedEmail = banResult.rows[0].email; // Store email
           bannedUsername = banResult.rows[0].username;
           banUntil = banResult.rows[0].banuntil;
+
+          // Email sending logic
+          
+
           console.log(
             `[Delete & Ban] User ${bannedUsername} banned until ${banUntil.toDateString()}.`
           );
@@ -336,7 +349,6 @@ module.exports = ({ db, authenticateToken }) => {
             `Comment (Review ID: ${reviewId}) deleted successfully.`
           );
         } else if (reviewId) {
-          // If reviewId was found but not deleted (e.g., already gone)
           message.push(`Comment (Review ID: ${reviewId}) was already deleted.`);
         } else {
           message.push(`No comment found for report ID ${reportId}.`);
@@ -351,12 +363,12 @@ module.exports = ({ db, authenticateToken }) => {
         }
 
         res.json({
-          success: reviewDeleted || userBanned, // Success if at least one action happened
+          success: reviewDeleted || userBanned,
           message: message.join(" "),
           reviewDeleted: reviewDeleted,
           userBanned: userBanned,
           bannedUser: userBanned
-            ? { username: bannedUsername, banUntil: banUntil }
+            ? { username: bannedUsername, email: bannedEmail, banUntil: banUntil } // Added bannedEmail here
             : null,
         });
       } catch (error) {

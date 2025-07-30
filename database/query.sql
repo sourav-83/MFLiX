@@ -4,12 +4,11 @@ SELECT
     a.Name                          AS name,
     a.Image                         AS image,
     LEFT(a.Bio, 300) || '...'       AS bio,
-    COUNT(c.CastID)                 AS movies_count,
-    COALESCE(ROUND(a.AverageRating::NUMERIC,1),0) AS popularity_score
+    COUNT(c.CastID)                 AS movies_count
     FROM   Actors a
     LEFT JOIN Casts c ON c.ActorID = a.ActorID
     GROUP  BY a.ActorID, a.Name, a.Image, a.Bio
-    ORDER  BY popularity_score DESC, movies_count DESC
+    ORDER  BY movies_count DESC
     LIMIT  10;
 
 

@@ -62,6 +62,46 @@ module.exports = ({ db, authenticateToken }) => {
       const result = await db.query(
         `SELECT reviewid, title, content, ratingscore, createdat, hasspoiler
        FROM reviews
+       WHERE userid = $1 AND movieid = $2 AND title IS NOT NULL AND content IS NOT NULL`,
+        [userId, movieId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(200).json({
+          hasReviewed: false,
+        });
+      }
+
+      // Get the review data
+      const review = result.rows[0];
+
+      return res.status(200).json({
+        hasReviewed: true,
+        reviewId: review.reviewid,
+        title: review.title,
+        content: review.content,
+        ratingscore: review.ratingscore,
+        createdAt: review.createdat,
+        hasSpoiler: review.hasspoiler,
+      });
+    } catch (error) {
+      console.error("Error checking review status:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  router.get("/user/check2/:movieId", authenticateToken, async (req, res) => {
+    const userId = req.user?.userID || req.user?.userid;
+    const movieId = parseInt(req.params.movieId);
+
+    if (isNaN(movieId)) {
+      return res.status(400).json({ error: "Invalid movie ID" });
+    }
+
+    try {
+      const result = await db.query(
+        `SELECT reviewid, title, content, ratingscore, createdat, hasspoiler
+       FROM reviews
        WHERE userid = $1 AND movieid = $2`,
         [userId, movieId]
       );
@@ -132,7 +172,7 @@ module.exports = ({ db, authenticateToken }) => {
     }
   });
 
-  // This parameterized route should come AFTER specific routes
+  
   router.get("/user/:movieId", authenticateToken, async (req, res) => {
     const userID = req.user?.userID || req.user?.userid;
     const movieID = parseInt(req.params.movieId);
@@ -372,11 +412,10 @@ module.exports = ({ db, authenticateToken }) => {
     }
   );
 
-  // NEW: POST /api/reviews/{reviewId}/report - Report a review
   router.post("/:reviewId/report", authenticateToken, async (req, res) => {
     const reviewId = parseInt(req.params.reviewId);
     const reporterUserId = req.user?.userID || req.user?.userid;
-    let { reportReason } = req.body; // Use 'let' to allow modification
+    let { reportReason } = req.body; 
 
     if (isNaN(reviewId)) {
       return res.status(400).json({ message: "Invalid review ID" });
