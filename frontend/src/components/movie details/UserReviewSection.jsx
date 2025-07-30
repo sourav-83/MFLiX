@@ -87,7 +87,7 @@ function UserReviewSection({ movieId, isAuthenticated }) {
   const [reviewForm, setReviewForm] = useState({
     title: '',
     content: '',
-    rating: 5,
+    rating: 0,
     hasSpoiler: false
   });
   const [hoverRating, setHoverRating] = useState(0);

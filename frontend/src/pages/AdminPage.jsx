@@ -222,29 +222,77 @@ const AdminPage = () => {
     }
   };
 
-  const handleDeleteAndBan = async (reportId, username) => {
-    try {
-      setActionLoading(reportId);
-      await axios.post(`${url}/api/user/admin/delete_and_ban`, { 
-        reportId, 
-        username,
-        banDuration: banDays
-      });
-      
-      // Remove the report from the list
-      setReports(reports.filter(report => report.id !== reportId));
-      setSuccess(`Comment deleted and user ${username} banned for ${banDays} days`);
-      
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error) {
-      console.error('Error deleting comment and banning user:', error);
-      setError('Failed to delete comment and ban user');
-      setTimeout(() => setError(''), 3000);
-    } finally {
-      setActionLoading(null);
-      setConfirmDialog({ open: false, action: '', reportId: null, username: '' });
+/* global emailjs */
+
+/* global emailjs */
+
+const handleDeleteAndBan = async (reportId, username) => {
+  try {
+    setActionLoading(reportId);
+    
+    // Make the API call and get the response
+    const response = await axios.post(`${url}/api/user/admin/delete_and_ban`, { 
+      reportId, 
+      username,
+      banDuration: banDays
+    });
+    
+    // Extract banned user info from the response
+    const { bannedUser } = response.data;
+    
+    // Remove the report from the list
+    setReports(reports.filter(report => report.id !== reportId));
+    setSuccess(`Comment deleted and user ${username} banned for ${banDays} days`);
+
+    // Email service start - only if user was actually banned
+    if (bannedUser && bannedUser.email) {
+      try {
+        const serviceId = 'service_bb3sl3g';
+        const templateId = 'template_7hegahc';
+        const publicKey = 'OWGcnCU0RFMayzRxg'; // This is the User ID in EmailJS
+
+        if (!serviceId || !templateId || !publicKey) {
+          console.error("EmailJS credentials not configured.");
+        } else {
+          const emailParams = {
+            email: bannedUser.email, 
+            name: bannedUser.username || 'User', 
+            from_name: 'MFL!X',
+            no_of_days: banDays 
+          };
+
+          const emailResponse = await window.emailjs.send(
+            serviceId,
+            templateId,
+            emailParams,
+            publicKey
+          );
+
+          if (emailResponse.status === 200) {
+            console.log("Ban notification email sent successfully to:", bannedUser.email);
+          } else {
+            console.warn("Email send response status:", emailResponse.status);
+          }
+        }
+      } catch (emailError) {
+        console.error("Error sending ban notification email:", emailError);
+        // Don't fail the whole operation if email fails
+      }
+    } else {
+      console.log("No banned user info available or user was not banned - skipping email notification");
     }
-  };
+    
+    setTimeout(() => setSuccess(''), 3000);
+    
+  } catch (error) {
+    console.error('Error deleting comment and banning user:', error);
+    setError('Failed to delete comment and ban user');
+    setTimeout(() => setError(''), 3000);
+  } finally {
+    setActionLoading(null);
+    setConfirmDialog({ open: false, action: '', reportId: null, username: '' });
+  }
+};
 
   const openConfirmDialog = (action, reportId, username) => {
     setConfirmDialog({

@@ -120,7 +120,7 @@ function UserRatingDisplay({ movieId, onRatingChanged }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${url}/api/reviews/user/check/${movieId}`, {
+      const response = await axios.get(`${url}/api/reviews/user/check2/${movieId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

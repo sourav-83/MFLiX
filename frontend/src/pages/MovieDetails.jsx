@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import { Box, Container, styled, Typography } from "@mui/material";
-import { BookmarkAdd, BookmarkAdded } from "@mui/icons-material";
+import { BookmarkAdd, BookmarkAdded, Star } from "@mui/icons-material";
 import url from "../constants/url";
 
 // Import reusable components
@@ -37,6 +37,116 @@ const SectionTitle = styled(Typography)`
   font-weight: 600;
   margin-bottom: 24px;
   padding-left: 16px;
+`;
+
+// New styled components for the movie title section
+const MovieTitleSection = styled(Box)`
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  padding: 40px 0 30px 0;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      #F5C518 20%, 
+      #FFD700 50%, 
+      #F5C518 80%, 
+      transparent 100%
+    );
+  }
+`;
+
+const MovieTitleContainer = styled(Container)`
+  position: relative;
+`;
+
+const MovieTitle = styled(Typography)`
+  color: #FFFFFF;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 16px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  
+  background: linear-gradient(135deg, #FFFFFF 0%, #F5C518 50%, #FFFFFF 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s ease-in-out infinite;
+  
+  @keyframes shimmer {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+`;
+
+const MovieSubtitle = styled(Box)`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+`;
+
+const SubtitleItem = styled(Box)`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #B0B0B0;
+  font-size: 16px;
+  font-weight: 500;
+`;
+
+const RatingBadge = styled(Box)`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 197, 24, 0.1);
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  border-radius: 20px;
+  padding: 6px 12px;
+  color: #F5C518;
+  font-weight: 600;
+`;
+
+const YearBadge = styled(Box)`
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  padding: 4px 12px;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
+`;
+
+const GenreBadge = styled(Box)`
+  background: rgba(245, 197, 24, 0.15);
+  border-radius: 15px;
+  padding: 4px 12px;
+  color: #F5C518;
+  font-weight: 500;
+  font-size: 14px;
+`;
+
+const Divider = styled(Box)`
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #F5C518 50%, transparent 100%);
+  margin: 0 auto 30px auto;
 `;
 
 function MovieDetails() {
@@ -464,6 +574,18 @@ function MovieDetails() {
     fetchMovieDetails(id);
   };
 
+  // Helper function to get release year from date
+  const getReleaseYear = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).getFullYear();
+  };
+
+  // Helper function to get first genre
+  const getPrimaryGenre = (genres) => {
+    if (!genres || genres.length === 0) return '';
+    return genres[0].name;
+  };
+
   // Loading and error states
   if (loading) {
     return <LoadingState />;
@@ -491,7 +613,18 @@ function MovieDetails() {
         formatDuration={formatDuration}
       />
       
-      {/* Add the UserRatingDisplay component here - above synopsis */}
+      {/* Movie Title Section - New attractive section */}
+      <MovieTitleSection>
+        <MovieTitleContainer maxWidth="xl">
+          <MovieTitle variant="h1">
+            {movie.title}
+          </MovieTitle>
+          
+          <Divider />
+        </MovieTitleContainer>
+      </MovieTitleSection>
+      
+      {/* User Rating Display */}
       <UserRatingDisplay 
         movieId={id} 
         onRatingChanged={handleRatingChanged}
