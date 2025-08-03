@@ -170,7 +170,6 @@ CREATE TABLE MovieWriters (
     PRIMARY KEY (MovieID, WriterID)
 );
 
--- Add a new table for Review Reports
 CREATE TABLE ReviewReports (
     ReportID SERIAL PRIMARY KEY,
     ReviewID INT NOT NULL REFERENCES Reviews(ReviewID) ON DELETE CASCADE,
@@ -180,16 +179,13 @@ CREATE TABLE ReviewReports (
     IsResolved BOOLEAN DEFAULT FALSE -- To track if the report has been actioned (ignored/addressed)
 );
 
--- Add a unique constraint to prevent duplicate reports from the same user on the same review
 ALTER TABLE ReviewReports
 ADD CONSTRAINT unique_user_review_report UNIQUE (ReviewID, ReporterUserID);
 
--- Add columns to the Users table for banning functionality
 ALTER TABLE Users
 ADD COLUMN IsBanned BOOLEAN DEFAULT FALSE,
 ADD COLUMN BanUntil DATE;
 
--- You might also want to add an index for faster lookup of reported reviews
 CREATE INDEX idx_reviewreports_reviewid ON ReviewReports(ReviewID);
 CREATE INDEX idx_reviewreports_isresolved ON ReviewReports(IsResolved);
 CREATE INDEX idx_users_isbanned ON Users(IsBanned);
