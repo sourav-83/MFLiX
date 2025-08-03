@@ -15,6 +15,7 @@ MFL!X is a full-stack movie exploration and review platform developed as a 2-1 D
 - Rate movies on a 10-star scale
 - Leave detailed reviews for movies
 - Rate cast performances individually
+- Update or delete any review 
 
 ### 🧠 Smart Search
 - Search movies by name
@@ -47,6 +48,7 @@ MFL!X is a full-stack movie exploration and review platform developed as a 2-1 D
 - Temporarily ban users (1–365 days)
 - Choose to ignore false reports
 - See Top Users – ranked by engagement (ratings, reviews, reactions)
+- Add movies to database
 
 ---
 
