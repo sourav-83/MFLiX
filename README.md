@@ -1,5 +1,7 @@
 # 🎬 MFL!X – Movie Explorer & Review Platform
 
+here's the web link -> https://mf-li-x.vercel.app
+
 MFL!X is a full-stack movie exploration and review platform developed as a 2-1 Database Term Project. It combines a sleek React frontend with a robust Node.js backend and PostgreSQL database to deliver a rich, feature-packed user experience.
 
 ---
